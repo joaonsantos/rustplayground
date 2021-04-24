@@ -1,4 +1,5 @@
 use std::io;
+use std::io::Write;
 use rand::Rng;
 use std::cmp::Ordering;
 
@@ -8,7 +9,9 @@ fn main() {
 
     loop {
         let mut guess = String::new();
-        println!("Please input your guess.");
+        println!("\nPlease input your guess.");
+        print!("> ");
+        io::stdout().flush().unwrap();
 
         io::stdin()
             .read_line(&mut guess)
