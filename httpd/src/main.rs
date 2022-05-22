@@ -1,5 +1,4 @@
 use httpd::server::Server;
-use httpd::http::{Request, Method};
 
 
 

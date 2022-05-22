@@ -1,9 +1,16 @@
 use super::method::{Method, MethodError};
-use std::{str, convert::TryFrom, error::Error, fmt::{Display, Debug, Formatter, Result as FmtResult}, str::{ParseBoolError, Utf8Error}};
+use super::QueryString;
+use std::{
+    convert::TryFrom,
+    error::Error,
+    fmt::{Display, Debug, Formatter, Result as FmtResult},
+    str::Utf8Error
+};
 
+#[derive(Debug)]
 pub struct Request<'buf> {
     pub path: &'buf str,
-    pub query_str: Option<&'buf str>,
+    pub query_str: Option<QueryString<'buf>>,
     pub method: Method,
 }
 
@@ -12,7 +19,8 @@ impl<'buf> TryFrom<&'buf [u8]> for Request<'buf> {
 
     // GET / HTTP/1.1
     fn try_from(buf: &'buf [u8]) -> Result<Request<'buf>, Self::Error> {
-        let req = str::from_utf8(&buf)?;
+        let req = std::str::from_utf8(&buf)?;
+        
         let (method, req) = get_next_token(req).ok_or(ParseError::InvalidRequest)?;
         let (mut path, req) = get_next_token(req).ok_or(ParseError::InvalidRequest)?;
         let (protocol, _) = get_next_token(req).ok_or(ParseError::InvalidRequest)?;
@@ -23,7 +31,7 @@ impl<'buf> TryFrom<&'buf [u8]> for Request<'buf> {
         let method: Method = method.parse()?;
         let mut query_str = None;
         if let Some(i) = path.find('?') {
-            query_str = Some(&path[i + 1..]);
+            query_str = Some(QueryString::from(&path[i + 1..]));
             path = &path[..i];
         }
 
