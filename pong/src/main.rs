@@ -3,7 +3,7 @@ use ggez::{
     graphics::{self, Color},
     mint::Point2,
     Context, ContextBuilder, GameError, conf,
-    input
+    input, timer
 };
 
 use glam::*;
@@ -30,6 +30,8 @@ struct GameState {
     player1_pos: Point2<f32>,
     player2_pos: Point2<f32>,
     ball_pos: Point2<f32>,
+    ball_vel: Point2<f32>,
+    points: i32,
 }
 
 
@@ -49,6 +51,8 @@ impl GameState {
                 x: screen_width / 2.0,
                 y: screen_height / 2.0,
             },
+            ball_vel: Point2 { x: 200.0, y: 200.0 },
+            points: 0,
         };
         state
     }
@@ -56,7 +60,6 @@ impl GameState {
     fn handle_input(&mut self, ctx: &mut ggez::Context) {
         let screen_height = ctx.gfx.drawable_size().1;
         let dt = ctx.time.delta().as_secs_f32();
-        println!("{}", dt);
 
         let ctx = &ctx.keyboard;
         if ctx.is_key_pressed(input::keyboard::KeyCode::W) {
@@ -66,12 +69,37 @@ impl GameState {
         }
         clamp(&mut self.player1_pos.y, PHEIGHT_HALF, screen_height - PHEIGHT_HALF)
     }
+
+    fn update_physics(&mut self, ctx: &mut ggez::Context) {
+        let (screen_width, screen_height) = ctx.gfx.drawable_size();
+        let dt = ctx.time.delta().as_secs_f32();
+
+        self.ball_pos.x += self.ball_vel.x * dt;
+        self.ball_pos.y += self.ball_vel.y * dt;
+
+        // score 
+        if self.ball_pos.x < 0.0 || self.ball_pos.x > screen_width {
+            self.ball_vel.x *= -1.0;
+            self.points += 1;
+        }
+
+        // walls collision
+        if self.ball_pos.y < BSIZE_HALF || self.ball_pos.y > (screen_height - BSIZE_HALF) {
+            self.ball_vel.y *= -1.0;
+        }
+
+        if self.ball_pos.x < (self.player1_pos.x + PLAYER_WIDTH) &&
+        self.ball_pos.y > (self.player1_pos.y - PHEIGHT_HALF) &&
+        self.ball_pos.y < (self.player1_pos.y + PHEIGHT_HALF) {
+            self.ball_vel.x *= -1.0;
+        }
+    }
 }
 
 impl event::EventHandler for GameState {
     fn update(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
-        
         GameState::handle_input(self, ctx);
+        GameState::update_physics(self, ctx);
         Ok(())
     }
 
@@ -107,8 +135,23 @@ impl event::EventHandler for GameState {
         let drawparams = graphics::DrawParam::new()
         .dest(self.ball_pos);
         canvas.draw(&ball_mesh, drawparams);
-        canvas.finish(ctx)
-        
+
+        let fps = ctx.time.fps();
+        let fps_text = graphics::Text::new(format!("FPS: {:.2}", fps));
+
+        let drawparams = graphics::DrawParam::new()
+        .dest(Point2{x:10.0,y:10.0});
+        canvas.draw(&fps_text, drawparams);
+
+        let fps_text = graphics::Text::new(format!("Points: {}", self.points));
+
+        let drawparams = graphics::DrawParam::new()
+        .dest(Point2{x:100.0,y:10.0});
+        canvas.draw(&fps_text, drawparams);
+
+        canvas.finish(ctx)?;
+        timer::yield_now();
+        Ok(())
     }
 }
 
