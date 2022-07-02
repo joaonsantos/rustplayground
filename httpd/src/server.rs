@@ -1,9 +1,9 @@
 use std::{
-    io::{Read, Write},
+    io::Read,
     net::{TcpListener, TcpStream},
 };
 
-use crate::http::Request;
+use crate::http::{response::Response, Request, StatusCode, ResponseHeader};
 
 pub struct Server {
     addr: String,
@@ -33,15 +33,20 @@ fn handle_client(mut stream: TcpStream) {
     match stream.read(&mut buf) {
         Ok(_) => {
             println!("Received a request: {}", String::from_utf8_lossy(&buf));
-            match Request::try_from(&buf[..]) {
+            let resp = match Request::try_from(&buf[..]) {
                 Ok(r) => {
                     dbg!(r);
-                    let response = "HTTP/1.1 200 OK\r\n\r\n";
-
-                    stream.write(response.as_bytes()).unwrap();
-                    stream.flush().unwrap();
+                    let body = "<h1>Hello world</h1>".to_string();
+                    Response::new(StatusCode::Ok, Some(body))
                 }
-                Err(e) => println!("Failed to parse request: {}", e),
+                Err(e) => {
+                    println!("Failed to parse request: {}", e);
+                    Response::new(StatusCode::BadRequest, None)
+                }
+            };
+            dbg!(&resp);
+            if let Err(e) = resp.send(&mut stream) {
+                println!("failed to send resp: {}", e);
             }
         }
         Err(e) => println!("Failed to read from stream: {}", e),
