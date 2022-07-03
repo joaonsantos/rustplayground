@@ -1,9 +1,9 @@
 use std::{io::Write, fmt::Display};
 
-use super::{StatusCode, status_code};
+use super::StatusCode;
 
 #[derive(Debug)]
-pub struct ResponseHeader {
+struct ResponseHeader {
     status_code: StatusCode,
     content_length: u64,
 }

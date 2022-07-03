@@ -2,7 +2,7 @@ pub use request::Request;
 pub use method::Method;
 pub use query_string::QueryString;
 pub use status_code::StatusCode;
-pub use response::ResponseHeader;
+pub use response::Response;
 
 pub mod status_code;
 pub mod response;

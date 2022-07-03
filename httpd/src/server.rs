@@ -3,7 +3,7 @@ use std::{
     net::{TcpListener, TcpStream},
 };
 
-use crate::http::{response::Response, Request, StatusCode, ResponseHeader};
+use crate::http::{Response, Request, StatusCode};
 
 pub struct Server {
     addr: String,
