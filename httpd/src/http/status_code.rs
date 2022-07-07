@@ -5,6 +5,7 @@ pub enum StatusCode{
     Ok = 200,
     BadRequest = 400,
     NotFound = 404,
+    MethodNotAllowed = 405,
 }
 
 impl StatusCode {
@@ -13,6 +14,7 @@ impl StatusCode {
             Self::Ok => "Ok",
             Self::BadRequest => "Bad Request",
             Self::NotFound => "Not Found",
+            StatusCode::MethodNotAllowed => "Method Not Allowed",
         }
     }
 }

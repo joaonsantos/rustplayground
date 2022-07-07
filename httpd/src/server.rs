@@ -3,15 +3,16 @@ use std::{
     net::{TcpListener, TcpStream},
 };
 
-use crate::http::{Response, Request, StatusCode};
+use crate::http::{Response, Request, StatusCode, Router};
 
 pub struct Server {
     addr: String,
+    router: Router,
 }
 
 impl Server {
-    pub fn new(addr: String) -> Self {
-        Self { addr }
+    pub fn new(addr: String, router: Router) -> Self {
+        Self { addr, router }
     }
 
     pub fn run(self) {
@@ -20,35 +21,36 @@ impl Server {
 
         for stream in listener.incoming() {
             match stream {
-                Ok(s) => handle_client(s),
+                Ok(s) => self.handle_client(s),
                 Err(e) => println!("Failed to read from stream: {}", e),
             }
         }
     }
-}
 
-fn handle_client(mut stream: TcpStream) {
-    let mut buf = [0; 1024];
-
-    match stream.read(&mut buf) {
-        Ok(_) => {
-            println!("Received a request: {}", String::from_utf8_lossy(&buf));
-            let resp = match Request::try_from(&buf[..]) {
-                Ok(r) => {
-                    dbg!(r);
-                    let body = "<h1>Hello world</h1>".to_string();
-                    Response::new(StatusCode::Ok, Some(body))
+    fn handle_client(&self, mut stream: TcpStream) {
+        let mut buf = [0; 1024];
+    
+        match stream.read(&mut buf) {
+            Ok(_) => {
+                println!("Received a request: {}", String::from_utf8_lossy(&buf));
+                let resp = match Request::try_from(&buf[..]) {
+                    Ok(req) => {
+                        dbg!(&req);
+                        self.router.handle_request(req)
+                    }
+                    Err(e) => {
+                        println!("Failed to parse request: {}", e);
+                        Response::new(StatusCode::BadRequest, None)
+                    }
+                };
+                dbg!(&resp);
+                if let Err(e) = resp.send(&mut stream) {
+                    println!("failed to send resp: {}", e);
                 }
-                Err(e) => {
-                    println!("Failed to parse request: {}", e);
-                    Response::new(StatusCode::BadRequest, None)
-                }
-            };
-            dbg!(&resp);
-            if let Err(e) = resp.send(&mut stream) {
-                println!("failed to send resp: {}", e);
             }
+            Err(e) => println!("Failed to read from stream: {}", e),
         }
-        Err(e) => println!("Failed to read from stream: {}", e),
     }
 }
+
+
