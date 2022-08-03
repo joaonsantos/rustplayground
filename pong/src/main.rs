@@ -13,9 +13,10 @@ const PLAYER_WIDTH: f32 = 20.0;
 const PLAYER_HEIGHT: f32 = 100.0;
 const PWIDTH_HALF: f32 = PLAYER_WIDTH / 2.0;
 const PHEIGHT_HALF: f32 = PLAYER_HEIGHT / 2.0;
-const BALL_SIZE: f32 = 10.0;
+const BALL_SIZE: f32 = 12.0;
 const BSIZE_HALF: f32 = BALL_SIZE / 2.0;
-const BALL_SPEED: f32 = 500.0;
+const BALL_SPEED: f32 = 300.0;
+const BALL_COLLISION_MOD: f32 = 1.5;
 const PLAYER_SPEED: f32 = 225.0;
 const AI_SPEED: f32 = 350.0;
 
@@ -27,6 +28,14 @@ fn clamp(val: &mut f32, min: f32, max: f32) {
     }
 }
 
+fn max(val: f32, max: f32) -> f32 {
+    if val < max {
+        val
+    } else {
+        max
+    }
+}
+
 #[derive(Debug)]
 struct GameState {
     p1_pos: Point2<f32>,
@@ -35,14 +44,15 @@ struct GameState {
     p2_points: i32,
     ball_pos: Point2<f32>,
     ball_vel: Point2<f32>,
-    ball_coliding: bool,
+    physics_collision: bool,
+    physics_interval: i32,
 }
 
 impl GameState {
     fn new(ctx: &mut Context) -> Self {
         let (screen_width, screen_height) = ctx.gfx.drawable_size();
 
-        let ball_vel =  init_ball_vel();
+        let ball_vel = init_ball_vel();
         let state = GameState {
             p1_pos: Point2 {
                 x: PLAYER_WIDTH,
@@ -59,7 +69,8 @@ impl GameState {
                 y: screen_height / 2.0,
             },
             ball_vel: ball_vel,
-            ball_coliding: false,
+            physics_collision: false,
+            physics_interval: 2000000,
         };
         state
     }
@@ -100,29 +111,45 @@ impl GameState {
         }
 
         // walls collision
-        if self.ball_pos.y < BSIZE_HALF || self.ball_pos.y > (screen_height - BSIZE_HALF) {
+        if self.ball_pos.y < BALL_SIZE || self.ball_pos.y > (screen_height - BALL_SIZE) {
             self.ball_vel.y *= -1.0;
         }
 
         // player collision
-        if self.ball_pos.x < (self.p1_pos.x + PLAYER_WIDTH)
+        if self.ball_pos.x < (self.p1_pos.x + PLAYER_WIDTH + 2.0)
+            && self.ball_pos.x > (self.p1_pos.x - (PLAYER_WIDTH / 2.0))
             && self.ball_pos.y > (self.p1_pos.y - PHEIGHT_HALF)
             && self.ball_pos.y < (self.p1_pos.y + PHEIGHT_HALF)
         {
-            if !self.ball_coliding {
-                self.ball_vel.x *= -1.0;
-            }
-            self.ball_coliding = true;
-        } else if self.ball_pos.x > (self.p2_pos.x - PLAYER_WIDTH)
+            let colision_offset = if self.ball_pos.y < self.p1_pos.y {
+                -1.0 * BALL_COLLISION_MOD * (self.p1_pos.y - self.ball_pos.y)
+            } else {
+                BALL_COLLISION_MOD * (self.ball_pos.y - self.p1_pos.y)
+            };
+            println!("p1 collision offset: {}", colision_offset);
+            println!("p1 pos: {}", self.p1_pos.y);
+            println!("ball pos: {}", self.ball_pos.y);
+            self.ball_vel.y += colision_offset;
+            self.ball_vel.x = max(self.ball_vel.x * -1.5, BALL_SPEED * 1.2);
+
+            self.ball_pos.x += 4.0;
+        } else if self.ball_pos.x > (self.p2_pos.x - PLAYER_WIDTH - 2.0)
+            && self.ball_pos.x < (self.p2_pos.x + (PLAYER_WIDTH / 2.0))
             && self.ball_pos.y > (self.p2_pos.y - PHEIGHT_HALF + 2.0)
             && self.ball_pos.y < (self.p2_pos.y + PHEIGHT_HALF + 2.0)
         {
-            if !self.ball_coliding {
-                self.ball_vel.x *= -1.0;
-            }
-            self.ball_coliding = true;
-        } else {
-            self.ball_coliding = false;
+            let colision_offset = if self.ball_pos.y < self.p2_pos.y {
+                -1.0 * BALL_COLLISION_MOD * (self.p2_pos.y - self.ball_pos.y)
+            } else {
+                BALL_COLLISION_MOD * (self.ball_pos.y - self.p2_pos.y)
+            };
+            println!("p2 collision offset: {}", colision_offset);
+            println!("p2 pos: {}", self.p2_pos.y);
+            println!("ball pos: {}", self.ball_pos.y);
+            self.ball_vel.y += colision_offset;
+            self.ball_vel.x = max(self.ball_vel.x * -1.5, BALL_SPEED * 1.2);
+
+            self.ball_pos.x -= 4.0;
         }
     }
 
@@ -130,7 +157,7 @@ impl GameState {
         let screen_height = ctx.gfx.drawable_size().1;
         let dt = ctx.time.delta().as_secs_f32();
 
-        let margin = PHEIGHT_HALF + 2.0;
+        let margin = PHEIGHT_HALF * 0.5;
         if self.ball_pos.y < self.p2_pos.y - margin {
             self.p2_pos.y -= AI_SPEED * dt;
         }
@@ -162,15 +189,19 @@ impl GameState {
     }
 }
 
-fn init_ball_vel() -> Point2<f32>{
+fn init_ball_vel() -> Point2<f32> {
     let mut rng = rand::thread_rng();
     let velx_mod = match rng.gen_bool(0.5) {
         true => 1.0,
         false => -1.0,
     };
+    let vely_mod = match rng.gen_bool(0.5) {
+        true => 1.0,
+        false => -1.0,
+    };
     Point2 {
-        x: rng.gen_range(0.48..0.6) * BALL_SPEED * velx_mod,
-        y: rng.gen_range(0.4..0.5) * BALL_SPEED,
+        x: BALL_SPEED * velx_mod,
+        y: rng.gen_range(0.15..0.2) * BALL_SPEED * vely_mod,
     }
 }
 
