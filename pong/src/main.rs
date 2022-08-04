@@ -44,8 +44,8 @@ struct GameState {
     p2_points: i32,
     ball_pos: Point2<f32>,
     ball_vel: Point2<f32>,
-    physics_collision: bool,
-    physics_interval: i32,
+    game_win: bool,
+    game_over: bool,
 }
 
 impl GameState {
@@ -69,8 +69,8 @@ impl GameState {
                 y: screen_height / 2.0,
             },
             ball_vel: ball_vel,
-            physics_collision: false,
-            physics_interval: 2000000,
+            game_over: false,
+            game_win: false,
         };
         state
     }
@@ -126,9 +126,7 @@ impl GameState {
             } else {
                 BALL_COLLISION_MOD * (self.ball_pos.y - self.p1_pos.y)
             };
-            println!("p1 collision offset: {}", colision_offset);
-            println!("p1 pos: {}", self.p1_pos.y);
-            println!("ball pos: {}", self.ball_pos.y);
+
             self.ball_vel.y += colision_offset;
             self.ball_vel.x = max(self.ball_vel.x * -1.5, BALL_SPEED * 1.2);
 
@@ -143,9 +141,6 @@ impl GameState {
             } else {
                 BALL_COLLISION_MOD * (self.ball_pos.y - self.p2_pos.y)
             };
-            println!("p2 collision offset: {}", colision_offset);
-            println!("p2 pos: {}", self.p2_pos.y);
-            println!("ball pos: {}", self.ball_pos.y);
             self.ball_vel.y += colision_offset;
             self.ball_vel.x = max(self.ball_vel.x * -1.5, BALL_SPEED * 1.2);
 
@@ -207,9 +202,26 @@ fn init_ball_vel() -> Point2<f32> {
 
 impl event::EventHandler for GameState {
     fn update(&mut self, ctx: &mut ggez::Context) -> Result<(), GameError> {
-        GameState::handle_input(self, ctx);
-        GameState::update_p2_ai(self, ctx);
-        GameState::update_physics(self, ctx);
+        if !self.game_over {
+            if self.p1_points >= 5 {
+                self.game_over = true;
+                self.game_win = true;
+            } else if self.p2_points >= 5 {
+                self.game_over = true;
+                self.game_win = false;
+            }
+
+            GameState::handle_input(self, ctx);
+            GameState::update_p2_ai(self, ctx);
+            GameState::update_physics(self, ctx);
+        } else {
+            let win_lose_str = if self.game_win { "YOU WIN" } else { "YOU LOSE" };
+            println!("Game finished.");
+            println!("{}", win_lose_str);
+            timer::sleep(std::time::Duration::from_secs(1));
+            let _ = event::request_quit(ctx);
+        }
+
         Ok(())
     }
 
