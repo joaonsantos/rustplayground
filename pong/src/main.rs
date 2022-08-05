@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows"]
 use ggez::{conf, ContextBuilder, event};
 use pong::game::gamestate;
 
