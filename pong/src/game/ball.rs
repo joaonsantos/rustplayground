@@ -19,7 +19,6 @@ pub struct Ball {
 impl Ball {
     pub fn new(pos: Point2<f32>, mesh: graphics::Mesh) -> Self {
         let vel = init_vel();
-        println!("{:?}", vel);
         Ball { pos, vel, mesh }
     }
 
